@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+body {
+    font-family: Arial;
+    background: #f4f6f8;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+input {
+    padding: 8px;
+    margin: 5px;
+}
+
+button {
+    padding: 8px 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+ul {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+canvas {
+    background: white;
+    padding: 10px;
+    border-radius: 10px;
+}
+</style>
+    <title>GST ERP</title>
+
+    <!-- ✅ Chart.js Added Here -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body>
+
+<h1>Smart GST ERP Dashboard</h1>
+
+<input id="name" placeholder="Item Name">
+<input id="price" placeholder="Price">
+<input id="quantity" placeholder="Quantity">
+
+<button onclick="addItem()">Add Item</button>
+
+<h2>Items List</h2>
+<ul id="list"></ul>
+
+<hr>
+
+<h1>Staff Management</h1>
+
+<input id="staffName" placeholder="Name">
+<input id="role" placeholder="Role">
+<input id="salary" placeholder="Salary">
+<input id="shift" placeholder="Shift">
+
+<button onclick="addStaff()">Add Staff</button>
+
+<h2>Staff List</h2>
+<ul id="staffList"></ul>
+
+<hr>
+
+<h1>Generate GST Bill</h1>
+
+<input id="customerName" placeholder="Customer Name">
+
+<button onclick="generateBill()">Download Bill</button>
+
+<hr>
+
+<h1>Dashboard</h1>
+
+<canvas id="salesChart" width="400" height="200"></canvas>
+
+<script>
+const API = "http://localhost:5000";
+
+// ================= INVENTORY =================
+
+function addItem() {
+    fetch(API + "/add-item", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            name: document.getElementById("name").value,
+            price: document.getElementById("price").value,
+            quantity: document.getElementById("quantity").value
+        })
+    }).then(() => {
+        loadItems();
+        loadChart(); // 🔥 update chart also
+    });
+}
+
+function loadItems() {
+    fetch(API + "/items")
+    .then(res => res.json())
+    .then(data => {
+        const list = document.getElementById("list");
+        list.innerHTML = "";
+
+        data.forEach(item => {
+            const li = document.createElement("li");
+            li.innerText = `${item.name} - ₹${item.price} (Qty: ${item.quantity})`;
+            list.appendChild(li);
+        });
+    });
+}
+
+loadItems();
+
+
+// ================= STAFF =================
+
+function addStaff() {
+    fetch(API + "/add-staff", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            name: document.getElementById("staffName").value,
+            role: document.getElementById("role").value,
+            salary: document.getElementById("salary").value,
+            shift: document.getElementById("shift").value
+        })
+    }).then(() => loadStaff());
+}
+
+function loadStaff() {
+    fetch(API + "/staff")
+    .then(res => res.json())
+    .then(data => {
+        const list = document.getElementById("staffList");
+        list.innerHTML = "";
+
+        data.forEach(s => {
+            const li = document.createElement("li");
+            li.innerText = `${s.name} - ${s.role} - ₹${s.salary}`;
+            list.appendChild(li);
+        });
+    });
+}
+
+loadStaff();
+
+
+// ================= GST BILL =================
+
+function generateBill() {
+    fetch(API + "/items")
+    .then(res => res.json())
+    .then(items => {
+
+        fetch(API + "/generate-bill", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                customerName: document.getElementById("customerName").value,
+                items: items
+            })
+        })
+        .then(res => res.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "bill.pdf";
+            a.click();
+        });
+
+    });
+}
+
+
+// ================= DASHBOARD =================
+
+let chart;
+
+function loadChart() {
+    fetch(API + "/items")
+    .then(res => res.json())
+    .then(data => {
+
+        const names = data.map(i => i.name);
+        const sales = data.map(i => i.price * i.quantity);
+
+        const ctx = document.getElementById('salesChart').getContext('2d');
+
+        // destroy old chart to avoid overlap
+        if (chart) {
+            chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: names,
+                datasets: [{
+                    label: 'Sales (₹)',
+                    data: sales
+                }]
+            }
+        });
+
+    });
+}
+
+loadChart();
+
+</script>
+
+</body>
+</html>
